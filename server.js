@@ -1,0 +1,109 @@
+const express = require("express");
+const cors = require("cors");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.json({ mensaje: "API de productos funcionando" });
+});
+let productos = [
+  { id: 1, nombre: "Teclado", precio: 350, stock: 10 },
+  { id: 2, nombre: "Mouse", precio: 180, stock: 25 }
+];
+let siguienteId = 3; 
+
+
+app.get("/api/productos", (req, res) => {
+  res.status(200).json(productos);
+});
+
+
+app.get("/api/productos/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const producto = productos.find(p => p.id === id);
+
+  if (!producto) {
+    return res.status(404).json({ error: `No existe el producto ${id}` });
+  }
+
+  res.status(200).json(producto);
+});
+
+function validar(datos) {
+  const { nombre, precio, stock } = datos ?? {};
+  const errores = [];
+
+  if (typeof nombre !== "string" || nombre.trim() === "") {
+    errores.push("nombre es obligatorio");
+  }
+
+  if (!Number.isFinite(precio) || precio < 0) {
+    errores.push("precio debe ser un número mayor o igual a cero");
+  }
+
+  if (!Number.isInteger(stock) || stock < 0) {
+    errores.push("stock debe ser un entero mayor o igual a cero");
+  }
+
+  return errores;
+}
+
+app.post("/api/productos", (req, res) => {
+  const errores = validar(req.body);
+
+  if (errores.length > 0) {
+    return res.status(400).json({ errores });
+  }
+
+  const { nombre, precio, stock } = req.body;
+  const nuevo = { id: siguienteId++, nombre, precio, stock };
+  productos.push(nuevo);
+
+  res.status(201).json(nuevo);
+});
+
+// Actualizar un producto
+app.put("/api/productos/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const indice = productos.findIndex(p => p.id === id);
+
+  if (indice === -1) {
+    return res.status(404).json({ error: `No existe el producto ${id}` });
+  }
+
+  const errores = validar(req.body);
+  if (errores.length > 0) {
+    return res.status(400).json({ errores });
+  }
+
+  const { nombre, precio, stock } = req.body;
+  const actualizado = { id, nombre, precio, stock };
+  productos[indice] = actualizado;
+
+  res.status(200).json(actualizado);
+});
+
+// Eliminar un producto
+app.delete("/api/productos/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const existe = productos.some(p => p.id === id);
+
+  if (!existe) {
+    return res.status(404).json({ error: `No existe el producto ${id}` });
+  }
+
+  productos = productos.filter(p => p.id !== id);
+  res.status(204).send();
+});
+
+// Ruta no encontrada
+app.use((req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada" });
+});
+app.listen(PORT, () => {
+  console.log(`Servidor en http://localhost:${PORT}`);
+});

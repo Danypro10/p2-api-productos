@@ -1,12 +1,26 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+const ORIGENES = (process.env.ORIGEN_PERMITIDO || "")
+  .split(",")
+  .map(origen => origen.trim())
+  .filter(Boolean);
 
+app.use(cors({ origin: ORIGENES }));
+app.use(express.json());
+function requiereToken(req, res, next) {
+  const clave = process.env.API_KEY;
+
+  if (!clave || req.get("x-api-key") !== clave) {
+    return res.status(401).json({ error: "Token inválido o ausente" });
+  }
+
+  next();
+}
 app.get("/", (req, res) => {
   res.json({ mensaje: "API de productos funcionando" });
 });
@@ -52,7 +66,7 @@ function validar(datos) {
   return errores;
 }
 
-app.post("/api/productos", (req, res) => {
+app.post("/api/productos",requiereToken, (req, res) => {
   const errores = validar(req.body);
 
   if (errores.length > 0) {
@@ -67,7 +81,7 @@ app.post("/api/productos", (req, res) => {
 });
 
 // Actualizar un producto
-app.put("/api/productos/:id", (req, res) => {
+app.put("/api/productos/:id",requiereToken, (req, res) => {
   const id = Number(req.params.id);
   const indice = productos.findIndex(p => p.id === id);
 
@@ -88,7 +102,7 @@ app.put("/api/productos/:id", (req, res) => {
 });
 
 // Eliminar un producto
-app.delete("/api/productos/:id", (req, res) => {
+app.delete("/api/productos/:id",requiereToken, (req, res) => {
   const id = Number(req.params.id);
   const existe = productos.some(p => p.id === id);
 
